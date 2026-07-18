@@ -15,7 +15,6 @@ final class AppStore: ObservableObject {
     private var isLoading = false
 
     var hasSavedAccount: Bool { lastAccount != nil }
-    var canUseFaceID: Bool { hasSavedAccount && BiometricAuthService.isAvailable }
 
     var upcomingAppointments: [Appointment] {
         appointments.filter { !$0.isCompleted && $0.date >= Date() }.sorted { $0.date < $1.date }
@@ -47,6 +46,16 @@ final class AppStore: ObservableObject {
               KeychainService.validate(password: password, for: normalized) else {
             throw AppStoreError.invalidCredentials
         }
+        openSession(account)
+    }
+
+    func resetPassword(email: String, newPassword: String) throws {
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard newPassword.count >= 8 else { throw AppStoreError.invalidPassword }
+        guard let account = loadAccounts().first(where: { $0.email == normalized }) else {
+            throw AppStoreError.accountNotFound
+        }
+        try KeychainService.save(password: newPassword, for: normalized)
         openSession(account)
     }
 
@@ -106,9 +115,13 @@ final class AppStore: ObservableObject {
     }
 
     private var lastAccount: UserAccount? {
-        guard let rawID = defaults.string(forKey: lastAccountKey),
-              let id = UUID(uuidString: rawID) else { return nil }
-        return loadAccounts().first(where: { $0.id == id })
+        let accounts = loadAccounts()
+        let rawID = defaults.string(forKey: lastAccountKey) ?? defaults.string(forKey: "ihealth.session")
+        if let rawID, let id = UUID(uuidString: rawID),
+           let account = accounts.first(where: { $0.id == id }) {
+            return account
+        }
+        return accounts.count == 1 ? accounts[0] : nil
     }
 
     private func loadSnapshot() {
@@ -155,12 +168,16 @@ enum AppStoreError: LocalizedError {
     case invalidRegistration
     case accountExists
     case invalidCredentials
+    case invalidPassword
+    case accountNotFound
 
     var errorDescription: String? {
         switch self {
         case .invalidRegistration: "Completa los datos y usa una contraseña de al menos 8 caracteres."
         case .accountExists: "Ya existe una cuenta con este correo."
         case .invalidCredentials: "El correo o la contraseña son incorrectos."
+        case .invalidPassword: "La nueva contraseña debe tener al menos 8 caracteres."
+        case .accountNotFound: "No existe una cuenta con este correo en el dispositivo."
         }
     }
 }

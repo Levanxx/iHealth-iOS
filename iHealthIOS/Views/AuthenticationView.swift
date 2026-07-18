@@ -41,6 +41,7 @@ private struct LoginForm: View {
     @State private var email = ""
     @State private var password = ""
     @State private var error = ""
+    @State private var showsPasswordReset = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -73,13 +74,66 @@ private struct LoginForm: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(IHealthTheme.violet)
-                .disabled(!store.canUseFaceID)
             }
+            Button("Restablecer contraseña") { showsPasswordReset = true }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
             Button("Crear una cuenta") { showsRegistration = true }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(IHealthTheme.violet)
         }
         .glassCard()
+        .sheet(isPresented: $showsPasswordReset) {
+            PasswordResetView(email: email)
+                .environmentObject(store)
+                .presentationDetents([.medium])
+        }
+    }
+}
+
+private struct PasswordResetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: AppStore
+    @State var email: String
+    @State private var password = ""
+    @State private var error = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                TextField("Correo electrónico", text: $email)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .padding(14)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 15))
+                SecureField("Nueva contraseña de 8 caracteres", text: $password)
+                    .textContentType(.newPassword)
+                    .padding(14)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 15))
+                if !error.isEmpty {
+                    Text(error).font(.footnote).foregroundStyle(.red)
+                }
+                Button("Guardar e ingresar") {
+                    do {
+                        try store.resetPassword(email: email, newPassword: password)
+                        dismiss()
+                    } catch {
+                        self.error = error.localizedDescription
+                    }
+                }
+                .buttonStyle(GradientButtonStyle())
+                Spacer()
+            }
+            .padding(24)
+            .navigationTitle("Nueva contraseña")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+            }
+        }
     }
 }
 

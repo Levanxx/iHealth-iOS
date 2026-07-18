@@ -1,12 +1,6 @@
 import LocalAuthentication
 
 enum BiometricAuthService {
-    static var isAvailable: Bool {
-        let context = LAContext()
-        var error: NSError?
-        return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-    }
-
     static func authenticate() async throws {
         let context = LAContext()
         context.localizedCancelTitle = "Cancelar"

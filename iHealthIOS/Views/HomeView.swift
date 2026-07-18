@@ -37,7 +37,8 @@ struct HomeView: View {
                         }
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 18)
             }

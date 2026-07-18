@@ -62,6 +62,19 @@ private struct LoginForm: View {
                 catch { self.error = error.localizedDescription }
             }
             .buttonStyle(GradientButtonStyle())
+            if store.hasSavedAccount {
+                Button {
+                    Task {
+                        do { try await store.loginWithFaceID() }
+                        catch { self.error = error.localizedDescription }
+                    }
+                } label: {
+                    Label("Ingresar con Face ID", systemImage: "faceid")
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(IHealthTheme.violet)
+                .disabled(!store.canUseFaceID)
+            }
             Button("Crear una cuenta") { showsRegistration = true }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(IHealthTheme.violet)

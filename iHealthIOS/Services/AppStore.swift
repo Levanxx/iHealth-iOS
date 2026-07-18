@@ -11,12 +11,11 @@ final class AppStore: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let accountsKey = "ihealth.accounts"
-    private let sessionKey = "ihealth.session"
+    private let lastAccountKey = "ihealth.lastAccount"
     private var isLoading = false
 
-    init() {
-        restoreSession()
-    }
+    var hasSavedAccount: Bool { lastAccount != nil }
+    var canUseFaceID: Bool { hasSavedAccount && BiometricAuthService.isAvailable }
 
     var upcomingAppointments: [Appointment] {
         appointments.filter { !$0.isCompleted && $0.date >= Date() }.sorted { $0.date < $1.date }
@@ -51,8 +50,13 @@ final class AppStore: ObservableObject {
         openSession(account)
     }
 
+    func loginWithFaceID() async throws {
+        guard let account = lastAccount else { throw BiometricAuthError.notAvailable }
+        try await BiometricAuthService.authenticate()
+        openSession(account)
+    }
+
     func logout() {
-        defaults.removeObject(forKey: sessionKey)
         currentUser = nil
         isLoading = true
         medications = []
@@ -97,16 +101,14 @@ final class AppStore: ObservableObject {
 
     private func openSession(_ account: UserAccount) {
         currentUser = account
-        defaults.set(account.id.uuidString, forKey: sessionKey)
+        defaults.set(account.id.uuidString, forKey: lastAccountKey)
         loadSnapshot()
     }
 
-    private func restoreSession() {
-        guard let rawID = defaults.string(forKey: sessionKey),
-              let id = UUID(uuidString: rawID),
-              let account = loadAccounts().first(where: { $0.id == id }) else { return }
-        currentUser = account
-        loadSnapshot()
+    private var lastAccount: UserAccount? {
+        guard let rawID = defaults.string(forKey: lastAccountKey),
+              let id = UUID(uuidString: rawID) else { return nil }
+        return loadAccounts().first(where: { $0.id == id })
     }
 
     private func loadSnapshot() {
